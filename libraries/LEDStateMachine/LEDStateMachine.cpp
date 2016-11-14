@@ -42,8 +42,8 @@ void LedStateMachine::reset(void)
 */
 void LedStateMachine::turnOffLed(void)
 {
-	m_SpiLeds.clear();
-	m_SpiLeds.write();
+	m_LED.clear();
+	m_LED.write();
 }
 
 /**
@@ -151,8 +151,8 @@ bool LedStateMachine::updateState(void)
 				m_CountDown = m_Duration;
 				memcpy(m_CurrentLeds, m_CurrentMsg->getLeds(), sizeof(m_CurrentLeds));
 			}
-			m_SpiLeds.setLeds(&m_CurrentLeds);
-			m_SpiLeds.write();
+			m_LED.setLeds(&m_CurrentLeds);
+			m_LED.write();
 
 			break;
 		case eStateEasing:
@@ -190,8 +190,8 @@ bool LedStateMachine::updateState(void)
 				}
 			}
 			// write the new values
-			m_SpiLeds.setLeds(&m_CurrentLeds);
-			m_SpiLeds.write();
+			m_LED.setLeds(&m_CurrentLeds);
+			m_LED.write();
 			break;
 		case eStateSteady:
 			if (0 == --m_CountDown)

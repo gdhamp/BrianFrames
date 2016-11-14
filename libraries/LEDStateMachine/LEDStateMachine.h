@@ -37,6 +37,12 @@ public:
 	 * Clears the value of the LED
 	 */
 	void clear(void) { m_Magnitude = 0; }
+
+	/**
+	 * Clears the value of the LED
+	 */
+	void write(void) { }
+
 	/**
 	 * Set the value of the LED
 	 * 
