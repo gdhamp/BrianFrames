@@ -11,23 +11,106 @@ LEDStep::LEDStep(uint8_t a_Flags, uint8_t a_Reps, uint8_t a_Magnitude, uint16_t 
 
 
 
+/**
+* Create a LEDQueue object with an array of packets
+*
+* @param a_Buffer - an array of Packets
+* @param a_Count - number of items packet array
+*/
+LEDQueue::LEDQueue(LEDStep* a_Buffer, int a_Count)
+{
+	// Set up the fixed stuff
+	
+	// store pointers to keep track of the queue
+	m_Head = a_Buffer;
+	// set the tail/clear the indices/set the size and length
+	// to be clear, m_Tail points to the "item" that is 1 past
+	// the last item
+	m_Count = a_Count;
+
+	//Reset the dynamic stuff
+	reset();
+}
+
+/**
+* Destructor
+*/
+LEDQueue::~LEDQueue()
+{
+}
+
+/**
+* Reset the queue
+*/
+void LEDQueue::reset(void)
+{
+	m_CurIndex = 0;
+	m_GroupCurIndex = 0;
+	m_GroupStartIndex = 0;
+	m_GroupEndIndex = 0;
+}
+
+
+/**
+* Get an item from the queue in an IRQ handler
+*
+* @return true if item fetched, false if queue is empty
+*/
+LEDStep* LEDQueue::get(bool a_Start)
+{
+	LEDStep* l_RetVal;
+
+	if (a_Start)
+		m_GroupStartIndex = m_CurIndex;
+
+	l_RetVal = &m_Head[m_CurIndex];
+
+	if (++m_CurIndex >= m_Count)
+		m_CurIndex = 0;
+
+	return l_RetVal;
+}
+
+/**
+* Just retrieve the next packet without modifying
+* queue data. Returns a pointer to the next packet
+*
+* @note This is bit complicated.
+*  m_ProdRdIndex is the first packet of the group
+*  m_ConRdIndex is the packet past the last packet of the group
+*
+* @param packet pointer to the current packet
+* @return pointer to the next packet (possibly wrapped around)
+*/
+LEDStep* LEDQueue::retrieveNextMessage(void)
+{
+	if (++m_GroupCurIndex >= m_Count)
+		m_GroupCurIndex = 0;
+
+	if (m_GroupCurIndex == m_GroupEndIndex)
+		m_GroupCurIndex = m_GroupStartIndex;
+
+	return &m_Head[m_GroupCurIndex];
+}
+
+
 
 
 
 /**
-* Create the LedStateMachine object, and reset the m_MessageQueue
+* Create the LedStateMachine object, and reset the m_LEDQueue
 *
 * @param [in] a_SpiLeds - a TLC59711 shared between this object and others
-* @param [in] a_MessageQueue - a PacketQueue shared between this object and others
+* @param [in] a_LEDQueue - a LEDQueue shared between this object and others
 */
-LedStateMachine::LedStateMachine(LED& a_LED, LEDStep& a_Steps) : m_LED(a_LED), m_Steps(a_Steps), m_DismissGroup(false)
+LedStateMachine::LedStateMachine(LED& a_LED, LEDQueue& a_Steps) : m_LED(a_LED), m_LEDQueue(a_Steps) 
 {
 	// Note - RgbLeds are clear by their constructor
 	reset();
 }
 
 /**
-* Reset all member variables, including resetting the m_MessageQueue and shutting off the LEDs
+* Reset all member variables, including resetting the m_LEDQueue and shutting off the LEDs
 */
 void LedStateMachine::reset(void)
 {
@@ -51,14 +134,13 @@ void LedStateMachine::turnOffLed(void)
 *
 * @return - a pointer to a Packet object, or NULL if repititions are exhausted
 */
-Packet* LedStateMachine::nextMessage(void)
+LEDStep* LedStateMachine::nextMessage(void)
 {
 	if (++m_CurrentIndex == m_NumInGroup)
 	{
 		// Are we done
 		if (0 == --m_Repetitions)
 		{
-			m_MessageQueue.consumerRelease();
 			return NULL;
 		}
 		else
@@ -66,7 +148,7 @@ Packet* LedStateMachine::nextMessage(void)
 			m_CurrentIndex = 0;
 		}
 	}
-	return m_MessageQueue.retrieveNextMessage(m_CurrentMsg);
+	return m_LEDQueue.retrieveNextMessage();
 }
 
 /**
@@ -76,29 +158,15 @@ Packet* LedStateMachine::nextMessage(void)
 */
 bool LedStateMachine::updateState(void)
 {
-	Packet *l_Msg;
+	LEDStep *l_Msg;
 
-	// check to see if the group need to be dismissed
-	// This is usually done with the side button
-	if (m_DismissGroup)
-	{
-		// only dismiss if the SM is active
-		if (m_State != eStateIdle)
-		{
-			m_MessageQueue.consumerRelease();		// release 
-			m_State = eStateIdle;
-			m_Preemptable = false;
-			turnOffLeds();
-		}
-
-		m_DismissGroup = false;
-	}
 	switch (m_State)
 	{
 		case eStateIdle:
 			m_NumInGroup = 0;
-			while (m_MessageQueue.get(&l_Msg))
+			while (1)
 			{
+				l_Msg = m_LEDQueue.get(m_NumInGroup == 0);
 				if (0 == m_NumInGroup++)
 				{
 					// turn the LED display driver power on and then delay
@@ -108,12 +176,12 @@ bool LedStateMachine::updateState(void)
 
 					m_CurrentIndex = 0;
 					m_CurrentMsg = l_Msg;
-					m_Preemptable = m_CurrentMsg->getFlags() &  HeadsUpMessageProtocol::ePreemptable;
 					m_Repetitions = m_CurrentMsg->getRepetitions();
 				}
 				// last message - then leave
-				if (l_Msg->getFlags() & HeadsUpMessageProtocol::eLastInGroupMask)
+				if (l_Msg->getFlags() & LEDMasks::eLastInGroup)
 				{
+					m_LEDQueue.SetEndIndex();
 					break;
 				}
 			}
@@ -177,7 +245,6 @@ bool LedStateMachine::updateState(void)
 					else
 					{
 						m_State = eStateIdle;
-						m_Preemptable = false;
 					}
 				}
 			}
@@ -204,7 +271,6 @@ bool LedStateMachine::updateState(void)
 				else
 				{
 					m_State = eStateIdle;
-					m_Preemptable = false;
 				}
 			}
 			break;

@@ -69,7 +69,7 @@ protected:
 class LEDStep
 {
 public:
-	LEDStep(uint8_t a_Flags, uint8_t a_Reps, uint8_t a_Magnitude, uint16_t a_FadeTime, uint16_t a_Duration);
+	LEDStep(uint8_t a_Flags, uint8_t a_Reps, uint8_t a_Magnitude, uint16_t a_Easing, uint16_t a_Duration);
 
 	/**
 	* Getter for the m_Flags
@@ -94,11 +94,11 @@ public:
 	LED& getLedMagniture(void) { return m_LEDMagnitude; }
 
 	/**
-	* Getter for the m_FadeTime
+	* Getter for the m_Easing
 	*
-	* @return - a copy of m_FadeTime
+	* @return - a copy of m_Easing
 	*/
-	uint16_t getFadeTime(void) { return m_FadeTime; }
+	uint16_t getEasing(void) { return m_Easing; }
 
 	/**
 	* Getter for the m_Duration
@@ -107,17 +107,56 @@ public:
 	*/
 	uint16_t getDuration(void) { return m_Duration; }
 
+	/**
+	* Getter for the m_Duration
+	*
+	* @return - a copy of m_Duration
+	*/
+	uint16_t getLED(void) { return m_LED; }
+
 protected:
 	uint8_t m_Flags;			// bit definitions defined above
 	uint8_t m_Repetitions;		// for message - number of repetitions for the group
 
 	// All of this is for messages
 	LED  m_LEDMagnitude;		// The Color for each LED
-	uint16_t m_FadeTime;		// transition time in units of 1/100 sec
+	uint16_t m_Easing;		// transition time in units of 1/100 sec
 	uint16_t m_Duration;		// duration of this setting in units of 1/100 sec
 };
 
 
+
+/**
+* The PacketQueue class will manage the packets in a queue
+*/
+class LEDQueue
+{
+public:
+	LEDQueue(LEDStep* a_Buffer, int a_Count);
+	virtual ~LEDQueue(void);
+
+	void reset(void);
+	void SetEndIndex(void)		{ m_GroupEndIndex = m_CurIndex;	}
+	LEDStep* get(bool a_Start);
+	LEDStep* retrieveNextMessage(void);
+
+
+
+protected:
+	int m_Count;					// number of items in the queue
+	
+	LEDStep* m_Head;				// pointer to the head of the queue
+	int m_CurIndex;
+
+	int m_GroupCurIndex;
+	int m_GroupStartIndex;
+	int m_GroupEndIndex;
+
+	LEDStep* m_ConStartIndex;		// consumer start index
+	LEDStep* m_ConEndIndex;			// consumer end index + 1
+	LEDStep* m_ConRdIndex;			// consumer end index
+
+};
 
 /**
 * The Easing class will control the rate and brightness of the LEDs
@@ -200,19 +239,18 @@ public:
 		eStateSteady
 	};
 
-	LedStateMachine(LED& a_LED, LEDStep& a_Steps);
+	LedStateMachine(LED& a_LED, LEDQueue& a_Steps);
 	void reset(void);
 	void turnOffLed(void);
 	bool updateState(void);
 
-	void dismissGroup(void)				{ m_DismissGroup = true;	}
 
 protected:
 	LEDStep* nextMessage(void);
 
 	LED& m_LED;
 
-	LEDStep& m_Steps;
+	LEDQueue& m_LEDQueue;
 
 	LedStateMachineStates m_State;
 	uint16_t m_CountDown;
@@ -222,14 +260,13 @@ protected:
 	uint8_t m_NumInGroup;
 	uint8_t m_CurrentIndex;
 
-	LED* m_CurrentMsg;
+	LEDStep* m_CurrentMsg;
 	LED* m_CurrentCmd;
-	bool m_DismissGroup;
 
-	LED m_EndLed[LED::m_NumberOfLeds];
-	LED m_CurrentLed[LED::m_NumberOfLeds];
+	LED m_EndLed;
+	LED m_CurrentLed;
 
-	Easing m_Easing[LED::m_NumberOfLeds];
+	Easing m_Easing;
 };
 
 #pragma pack(pop)

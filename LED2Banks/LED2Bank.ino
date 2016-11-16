@@ -1,6 +1,13 @@
 #include "LEDStateMachine.h"
 
-LEDStep blah[] = 
+#define LED0 (3)
+#define LED1 (5)
+#define LED2 (6)
+#define LED3 (9)
+#define LED4 (10)
+#define LED5 (11)
+
+LEDStep LEDStep0[] = 
 {
 	LEDStep( 0,             10, 128,  20,  10 ),
 	LEDStep( eLastInGroup,   0,  20, 100, 300 )
