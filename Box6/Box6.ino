@@ -9,46 +9,59 @@
 LEDStep g_LED0Steps[] = 
 {
 // 				Flags			Reps	Mag		Fade	Duration
-	LEDStep(	0,				 4,		255,  	100,  	0 ),
-	LEDStep(	eLastInGroup,	 0,		77,		100,	0 ),
-	LEDStep(	0,				 3,		88,  	100,  	0 ),
-	LEDStep(	eLastInGroup,	 0,		22,		100,	0 )
+	LEDStep(	0,				 1,		0,  	0,  200 ),
+	LEDStep(	eLastInGroup,	 0,	  255,		0,  100 ),
+	LEDStep(	0,				 2,		0,  	0,    50 ),
+	LEDStep(	eLastInGroup,	 0,		255,		0,	50 ),
+   LEDStep(  0,         6,   0,    0,    50 ),
+  LEDStep(  eLastInGroup,  0,   255,    0,  50 )
 };
 
 LEDStep g_LED1Steps[] = 
 {
 // 				Flags			Reps	Mag		Fade	Duration
-	LEDStep(	0,				 4,		255,  	20,  	00 ),
-	LEDStep(	eLastInGroup,	 0,		77,		20,		00 ),
-	LEDStep(	0,				 3,		88,  	20,  	00 ),
-	LEDStep(	eLastInGroup,	 0,		22,		20,		00 )
+	LEDStep(	0,				 1,		255,  	0,  	50 ),
+	LEDStep(	eLastInGroup,	 0,		0,		0,		250 ),
+	LEDStep(	0,				 2,	  255,  	0,  	50 ),
+	LEDStep(	eLastInGroup,	 0,		0,		00,		50 ),
+  LEDStep(  0,         15,   255,    0,    20 ),
+  LEDStep(  eLastInGroup,  0,   0,    0,  20 )
 };
 
 LEDStep g_LED2Steps[] = 
 {
 // 				Flags			Reps	Mag		Fade	Duration
-	LEDStep(	0,				 4,		255,  	20,  	00 ),
-	LEDStep(	eLastInGroup,	 0,		77,		20,		00 ),
-	LEDStep(	0,				 3,		88,  	20,  	00 ),
-	LEDStep(	eLastInGroup,	 0,		22,		20,		00 )
+	LEDStep(	0,				 1,		0,  	0,  	50 ),
+  LEDStep(  0,         0,   255,  0,    50),
+	LEDStep(	eLastInGroup,	 0,		0,		0,		200 ),
+  LEDStep(  0,         2,   255,    0,    50 ),
+  LEDStep(  eLastInGroup,  0,   0,    00,   50 ),
+  LEDStep(  0,         30,   255,    0,    10 ),
+  LEDStep(  eLastInGroup,  0,   0,    0,  10 )
 };
 
 LEDStep g_LED3Steps[] = 
 {
 // 				Flags			Reps	Mag		Fade	Duration
-	LEDStep(	0,				 4,		255,  	20,  	00 ),
-	LEDStep(	eLastInGroup,	 0,		77,		20,		00 ),
-	LEDStep(	0,				 3,		88,  	20,  	00 ),
-	LEDStep(	eLastInGroup,	 0,		22,		20,		00 )
+	LEDStep(  0,         1,   0,    0,    100 ),
+  LEDStep(  0,         0,   255,  0,    50),
+  LEDStep(  eLastInGroup,  0,   0,    0,    150 ),
+  LEDStep(  0,         2,   255,    0,    50 ),
+  LEDStep(  eLastInGroup,  0,   0,    00,   50 ),
+  LEDStep(  0,         10,   255,    0,    30 ),
+  LEDStep(  eLastInGroup,  0,   0,    0,  30 )
 };
 
 LEDStep g_LED4Steps[] = 
 {
 // 				Flags			Reps	Mag		Fade	Duration
-	LEDStep(	0,				 4,		255,  	20,  	00 ),
-	LEDStep(	eLastInGroup,	 0,		77,		20,		00 ),
-	LEDStep(	0,				 3,		88,  	20,  	00 ),
-	LEDStep(	eLastInGroup,	 0,		22,		20,		00 )
+  LEDStep(  0,         1,   0,    0,    150 ),
+  LEDStep(  0,         0,   255,  0,    50),
+  LEDStep(  eLastInGroup,  0,   0,    0,    100 ),
+  LEDStep(  0,         2,   255,    0,    50 ),
+  LEDStep(  eLastInGroup,  0,   0,    00,   50 ),
+  LEDStep(  0,         12,   255,    0,    25 ),
+  LEDStep(  eLastInGroup,  0,   0,    0,  25 )
 };
 
 LED g_LED0(LED0);
