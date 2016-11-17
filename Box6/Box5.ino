@@ -1,11 +1,10 @@
 #include "LEDStateMachine.h"
 
-#define LED0 (3)
-#define LED1 (5)
-#define LED2 (6)
-#define LED3 (9)
-#define LED4 (10)
-#define LED5 (11)
+#define LED0 (5)
+#define LED1 (6)
+#define LED2 (9)
+#define LED3 (10)
+#define LED4 (11)
 
 LEDStep g_LED0Steps[] = 
 {
