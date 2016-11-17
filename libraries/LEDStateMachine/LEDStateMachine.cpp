@@ -4,30 +4,117 @@
 
 
 
-LEDStep::LEDStep(uint8_t a_Flags, uint8_t a_Reps, uint8_t a_Magnitude, uint16_t a_FadeTime, uint16_t a_Duration)
-	: m_Flags(a_Flags), m_Repetitions(a_Reps), m_LEDMagnitude(a_Magnitude), m_FadeTime(a_FadeTime), m_Duration(a_Duration)
+LEDStep::LEDStep(uint8_t a_Flags, uint8_t a_Reps, uint8_t a_Magnitude, uint16_t a_Easing, uint16_t a_Duration)
+	: m_Flags(a_Flags), m_Repetitions(a_Reps), m_LEDMagnitude(a_Magnitude), m_Easing(a_Easing), m_Duration(a_Duration)
 {
 }
 
 
 
-
-
-
 /**
-* Create the LedStateMachine object, and reset the m_MessageQueue
+* Create a LEDQueue object with an array of packets
 *
-* @param [in] a_SpiLeds - a TLC59711 shared between this object and others
-* @param [in] a_MessageQueue - a PacketQueue shared between this object and others
+* @param a_Buffer - an array of Packets
+* @param a_Count - number of items packet array
 */
-LedStateMachine::LedStateMachine(LED& a_LED, LEDStep& a_Steps) : m_LED(a_LED), m_Steps(a_Steps), m_DismissGroup(false)
+LEDQueue::LEDQueue(LEDStep* a_Buffer, int a_Count)
 {
-	// Note - RgbLeds are clear by their constructor
+	// Set up the fixed stuff
+	
+	// store pointers to keep track of the queue
+	m_Head = a_Buffer;
+	// set the tail/clear the indices/set the size and length
+	// to be clear, m_Tail points to the "item" that is 1 past
+	// the last item
+	m_Count = a_Count;
+
+	//Reset the dynamic stuff
 	reset();
 }
 
 /**
-* Reset all member variables, including resetting the m_MessageQueue and shutting off the LEDs
+* Destructor
+*/
+LEDQueue::~LEDQueue()
+{
+}
+
+/**
+* Reset the queue
+*/
+void LEDQueue::reset(void)
+{
+	m_CurIndex = 0;
+	m_GroupCurIndex = 0;
+	m_GroupStartIndex = 0;
+	m_GroupEndIndex = 0;
+}
+
+
+/**
+* Get an item from the queue in an IRQ handler
+*
+* @return true if item fetched, false if queue is empty
+*/
+LEDStep* LEDQueue::get(bool a_Start)
+{
+	LEDStep* l_RetVal;
+
+	if (a_Start)
+	{
+		m_GroupStartIndex = m_CurIndex;
+		m_GroupCurIndex = m_CurIndex;
+	}
+
+	l_RetVal = &m_Head[m_CurIndex];
+
+	if (++m_CurIndex >= m_Count)
+		m_CurIndex = 0;
+
+	return l_RetVal;
+}
+
+/**
+* Just retrieve the next packet without modifying
+* queue data. Returns a pointer to the next packet
+*
+* @note This is bit complicated.
+*  m_ProdRdIndex is the first packet of the group
+*  m_ConRdIndex is the packet past the last packet of the group
+*
+* @param packet pointer to the current packet
+* @return pointer to the next packet (possibly wrapped around)
+*/
+LEDStep* LEDQueue::retrieveNextMessage(void)
+{
+	if (++m_GroupCurIndex >= m_Count)
+		m_GroupCurIndex = 0;
+
+	if (m_GroupCurIndex == m_GroupEndIndex)
+		m_GroupCurIndex = m_GroupStartIndex;
+
+	return &m_Head[m_GroupCurIndex];
+}
+
+
+
+
+
+/**
+* Create the LedStateMachine object, and reset the m_LEDQueue
+*
+* @param [in] a_SpiLeds - a TLC59711 shared between this object and others
+* @param [in] a_LEDQueue - a LEDQueue shared between this object and others
+*/
+LedStateMachine::LedStateMachine(LED& a_LED, LEDQueue& a_Steps) : m_LED(a_LED), m_LEDQueue(a_Steps)
+{
+	// Note - RgbLeds are clear by their constructor
+	m_Easing.setLED(&m_LED);
+	reset();
+}
+
+/**
+* Reset all member variables, including resetting the m_LEDQueue and shutting off the LEDs
 */
 void LedStateMachine::reset(void)
 {
@@ -42,8 +129,7 @@ void LedStateMachine::reset(void)
 */
 void LedStateMachine::turnOffLed(void)
 {
-	m_SpiLeds.clear();
-	m_SpiLeds.write();
+	m_LED.clear();
 }
 
 /**
@@ -51,14 +137,13 @@ void LedStateMachine::turnOffLed(void)
 *
 * @return - a pointer to a Packet object, or NULL if repititions are exhausted
 */
-Packet* LedStateMachine::nextMessage(void)
+LEDStep* LedStateMachine::nextMessage(void)
 {
 	if (++m_CurrentIndex == m_NumInGroup)
 	{
 		// Are we done
 		if (0 == --m_Repetitions)
 		{
-			m_MessageQueue.consumerRelease();
 			return NULL;
 		}
 		else
@@ -66,7 +151,7 @@ Packet* LedStateMachine::nextMessage(void)
 			m_CurrentIndex = 0;
 		}
 	}
-	return m_MessageQueue.retrieveNextMessage(m_CurrentMsg);
+	return m_LEDQueue.retrieveNextMessage();
 }
 
 /**
@@ -76,29 +161,15 @@ Packet* LedStateMachine::nextMessage(void)
 */
 bool LedStateMachine::updateState(void)
 {
-	Packet *l_Msg;
+	LEDStep *l_Msg;
 
-	// check to see if the group need to be dismissed
-	// This is usually done with the side button
-	if (m_DismissGroup)
-	{
-		// only dismiss if the SM is active
-		if (m_State != eStateIdle)
-		{
-			m_MessageQueue.consumerRelease();		// release 
-			m_State = eStateIdle;
-			m_Preemptable = false;
-			turnOffLeds();
-		}
-
-		m_DismissGroup = false;
-	}
 	switch (m_State)
 	{
 		case eStateIdle:
 			m_NumInGroup = 0;
-			while (m_MessageQueue.get(&l_Msg))
+			while (1)
 			{
+				l_Msg = m_LEDQueue.get(m_NumInGroup == 0);
 				if (0 == m_NumInGroup++)
 				{
 					// turn the LED display driver power on and then delay
@@ -108,12 +179,12 @@ bool LedStateMachine::updateState(void)
 
 					m_CurrentIndex = 0;
 					m_CurrentMsg = l_Msg;
-					m_Preemptable = m_CurrentMsg->getFlags() &  HeadsUpMessageProtocol::ePreemptable;
 					m_Repetitions = m_CurrentMsg->getRepetitions();
 				}
 				// last message - then leave
-				if (l_Msg->getFlags() & HeadsUpMessageProtocol::eLastInGroupMask)
+				if (l_Msg->getFlags() & LEDMasks::eLastInGroup)
 				{
+					m_LEDQueue.SetEndIndex();
 					break;
 				}
 			}
@@ -135,24 +206,18 @@ bool LedStateMachine::updateState(void)
 
 				m_State = eStateEasing;
 				m_CountDown = m_EasingTime;
-				memcpy(m_EndLeds, m_CurrentMsg->getLeds(), sizeof(m_CurrentLeds));
-				for (int i=0; i<RgbLed::m_NumberOfLeds; i++)
-				{
-					m_Easing[i].init(m_CurrentLeds[i], m_EndLeds[i], m_EasingTime);
-				}
-				for (int i=0; i<RgbLed::m_NumberOfLeds; i++)
-				{
-					m_Easing[i].calc(m_CurrentLeds[i]);
-				}
+				m_EndLed = m_CurrentMsg->getLEDMagnitude();
+
+				m_Easing.init(m_CurrentLed, m_EndLed, m_EasingTime);
+				m_Easing.calc();
 			}
 			else
 			{
 				m_State = eStateSteady;
 				m_CountDown = m_Duration;
-				memcpy(m_CurrentLeds, m_CurrentMsg->getLeds(), sizeof(m_CurrentLeds));
+				m_CurrentLed = m_CurrentMsg->getLEDMagnitude();
 			}
-			m_SpiLeds.setLeds(&m_CurrentLeds);
-			m_SpiLeds.write();
+			m_LED.setMagnitude(m_CurrentLed);
 
 			break;
 		case eStateEasing:
@@ -161,7 +226,7 @@ bool LedStateMachine::updateState(void)
 			{
 				// reconcile that easing may have not ended precicely on the correct value
 				// so just copy in the correct values 
-				memcpy(m_CurrentLeds, m_CurrentMsg->getLeds(), sizeof(m_CurrentLeds));
+				m_CurrentLed = m_CurrentMsg->getLEDMagnitude();
 				m_CountDown = m_Duration;
 				if (m_CountDown)
 				{
@@ -177,21 +242,16 @@ bool LedStateMachine::updateState(void)
 					else
 					{
 						m_State = eStateIdle;
-						m_Preemptable = false;
 					}
 				}
 			}
 			else
 			{
 				// Ease on down the road
-				for (int i=0; i < RgbLed::m_NumberOfLeds; i++)
-				{
-					m_Easing[i].calc(m_CurrentLeds[i]);
-				}
+				m_Easing.calc();
 			}
 			// write the new values
-			m_SpiLeds.setLeds(&m_CurrentLeds);
-			m_SpiLeds.write();
+			m_LED.write();
 			break;
 		case eStateSteady:
 			if (0 == --m_CountDown)
@@ -204,7 +264,6 @@ bool LedStateMachine::updateState(void)
 				else
 				{
 					m_State = eStateIdle;
-					m_Preemptable = false;
 				}
 			}
 			break;

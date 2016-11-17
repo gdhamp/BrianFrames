@@ -3,7 +3,6 @@ ARDUINO_DIR  = /usr/share/arduino
 AVRDUDE=/usr/bin/avrdude
 
 BOARD_TAG    = pro5v328
-#ARDUINO_PORT = /dev/ttyACM0
 ARDUINO_PORT = /dev/ttyUSB0
 
 

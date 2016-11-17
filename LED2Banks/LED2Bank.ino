@@ -1,22 +1,38 @@
 #include "LEDStateMachine.h"
 
-LEDStep blah[] = 
+#define LED0 (5)
+#define LED1 (6)
+#define LED2 (6)
+#define LED3 (9)
+#define LED4 (10)
+#define LED5 (11)
+
+LED g_LED1(LED1);
+LEDStep g_LED1Steps[] = 
 {
-	LEDStep( 0,             10, 128,  20,  10 ),
-	LEDStep( eLastInGroup,   0,  20, 100, 300 )
+// 				Flags			Reps	Mag		Fade	Duration
+	LEDStep(	0,				 4,		255,  	80,  	100 ),
+	LEDStep(	eLastInGroup,	 0,		77,		80,		100 ),
+	LEDStep(	0,				 3,		88,  	80,  	100 ),
+	LEDStep(	eLastInGroup,	 0,		22,		80,		100 )
 };
+
+LEDQueue g_LED1Queue((LEDStep *)g_LED1Steps, sizeof(g_LED1Steps)/sizeof(LEDStep));
+
+LedStateMachine g_LED1SM(g_LED1, g_LED1Queue);
 
 void setup()
 {
+	Serial.begin(115200);
+	Serial.println("begin");
 	// initialize digital pin LED_BUILTIN as an output.
-	pinMode(LED_BUILTIN, OUTPUT);
+	pinMode(13, INPUT);
+	pinMode(LED1, OUTPUT);
 }
 
 // the loop function runs over and over again forever
 void loop()
 {
-	digitalWrite(LED_BUILTIN, HIGH);	// turn the LED on (HIGH is the voltage level)
-	delay(200);						// wait for a second
-	digitalWrite(LED_BUILTIN, LOW);		// turn the LED off by making the voltage LOW
-	delay(200);						// wait for a second
+	g_LED1SM.updateState();
+	delay(10);						// wait for a 1/10 second
 }
