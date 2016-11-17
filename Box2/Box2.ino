@@ -11,9 +11,9 @@ LEDStep g_LED0Steps[] =
 	LEDStep(	0,				 1,		100,  	40,  	0 ),
 	LEDStep(	eLastInGroup,	 0,		30,		40,	0 ),
   LEDStep(  0,          3,  150,    10,   0),
-  LEDStep(  eLastInGroup  0,    40,   10, 0),
+  LEDStep(  eLastInGroup, 0,    40,   10, 0),
   LEDStep(  0,          1,   200,   60,   0),
-  LEDStep(  eLastInGrou  0,   100,  60,   0)
+  LEDStep(  eLastInGroup,  0,   100,  60,   0)
 };
 
 LEDStep g_LED1Steps[] = 
