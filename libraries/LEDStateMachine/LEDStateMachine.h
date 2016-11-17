@@ -21,34 +21,28 @@ public:
 	/**
 	 * Create the LED object, and clear it
 	 */
-	LED() { clear(); }
-
-	/**
-	 * Create the LED object, with initial values for the magnitude
-	 *
-	 * @param [in] a_Magnitude - the value to initialize the LED to
-	 */
-	LED(uint8_t a_Magnitude)
-	{
-		m_Magnitude = a_Magnitude;
-	}
+	LED(uint8_t a_Pin) : m_Pin(a_Pin) { clear(); }
 
 	/**
 	 * Clears the value of the LED
 	 */
 	void clear(void) { m_Magnitude = 0; }
 
-	/**
-	 * Clears the value of the LED
-	 */
-	void write(void) { }
-
+	// TODO
+	void write(void) {  }
 	/**
 	 * Set the value of the LED
 	 * 
 	 * @param [in] value - the value to set the LED to
 	 */
-	void setMagnitude(uint8_t value) { m_Magnitude = value; }
+	void setMagnitude(uint8_t value) {	m_Magnitude = value;
+#if 0
+		Serial.print(m_Magnitude);
+		Serial.print('\t');
+		Serial.println(millis());
+#endif
+										analogWrite(m_Pin, m_Magnitude);	}
+	void setMagnitude(LED& a_LED) { setMagnitude(a_LED.getMagnitude());		}
 
 	/**
 	 * Getter for the m_Magnitude
@@ -57,8 +51,9 @@ public:
 	 */
 	uint8_t getMagnitude(void) { return m_Magnitude; }
 
-	static const uint8_t m_NumberOfLeds = 2;
+	static const uint8_t m_NumberOfLeds = 1;
 protected:
+	uint8_t m_Pin;
 	uint8_t	m_Magnitude;
 };
 
@@ -91,7 +86,7 @@ public:
 	*
 	* @return - a copy of m_Leds
 	*/
-	LED& getLedMagniture(void) { return m_LEDMagnitude; }
+	uint8_t getLEDMagnitude(void) { return m_LEDMagnitude; }
 
 	/**
 	* Getter for the m_Easing
@@ -107,19 +102,12 @@ public:
 	*/
 	uint16_t getDuration(void) { return m_Duration; }
 
-	/**
-	* Getter for the m_Duration
-	*
-	* @return - a copy of m_Duration
-	*/
-	uint16_t getLED(void) { return m_LED; }
-
 protected:
 	uint8_t m_Flags;			// bit definitions defined above
 	uint8_t m_Repetitions;		// for message - number of repetitions for the group
 
 	// All of this is for messages
-	LED  m_LEDMagnitude;		// The Color for each LED
+	uint8_t  m_LEDMagnitude;		// The Color for each LED
 	uint16_t m_Easing;		// transition time in units of 1/100 sec
 	uint16_t m_Duration;		// duration of this setting in units of 1/100 sec
 };
@@ -136,7 +124,7 @@ public:
 	virtual ~LEDQueue(void);
 
 	void reset(void);
-	void SetEndIndex(void)		{ m_GroupEndIndex = m_CurIndex;	}
+	void SetEndIndex(void)		{ m_GroupEndIndex = m_CurIndex; }
 	LEDStep* get(bool a_Start);
 	LEDStep* retrieveNextMessage(void);
 
@@ -167,7 +155,9 @@ public:
 	/**
 	* Create the Easing object
 	*/
-	Easing() { clear(); }
+	Easing() { clear();  }
+
+	void setLED(LED* a_LED) { m_LED = a_LED;	}
 
 	/**
 	* The clear function will set the increment member variables to 0
@@ -181,13 +171,13 @@ public:
 	* @param [in] a_EndLed - a LED used to determine final values for increment member variables
 	* @param [in] m_EasingTime - the total time the easing shall take to get from a_StartLed to a_EndLed
 	*/
-	void init(LED& a_StartLed, LED& a_EndLed, uint16_t m_EasingTime)
+	void init(uint8_t a_StartMag, uint8_t a_EndMag, uint16_t m_EasingTime)
 	{
 		m_Times = 0;
 
-		m_Accum = ((int32_t)a_StartLed.getMagnitude()) << 15;
+		m_Accum = ((int32_t)a_StartMag) << 15;
 
-		m_Inc = ((((int32_t)a_EndLed.getMagnitude()) << 15) - m_Accum) / m_EasingTime;
+		m_Inc = ((((int32_t)a_EndMag) << 15) - m_Accum) / m_EasingTime;
 	}
 
 	/**
@@ -201,7 +191,7 @@ public:
 		// Put the ticks in the right place, say easing is 2, so the ticks
 		// are 1/4 and 3/4 so the first time we add half the easing value
 		++m_Times;
-		a_Led.setMagnitude(((((int32_t) a_Led.getMagnitude()) << 15) + m_Inc/2) >> 15);
+		m_LED->setMagnitude(((((int32_t) a_Led.getMagnitude()) << 15) + m_Inc/2) >> 15);
 	}
 
 	/**
@@ -209,17 +199,18 @@ public:
 	*
 	* @param [out] a_Led - a LED that will be updated based on the internal increment and accumulator member variables
 	*/
-	void calc(LED& a_Led)
+	void calc(void)
 	{
 		++m_Times;
 
 		m_Accum += m_Inc;
 
-		a_Led.setMagnitude(m_Accum >> 15);
+		m_LED->setMagnitude(m_Accum >> 15);
 	}
 
 protected:
 	int m_Times;
+	LED* m_LED;
 	int32_t m_Inc;
 	int32_t m_Accum;
 };
@@ -263,8 +254,8 @@ protected:
 	LEDStep* m_CurrentMsg;
 	LED* m_CurrentCmd;
 
-	LED m_EndLed;
-	LED m_CurrentLed;
+	uint8_t m_EndLed;
+	uint8_t m_CurrentLed;
 
 	Easing m_Easing;
 };

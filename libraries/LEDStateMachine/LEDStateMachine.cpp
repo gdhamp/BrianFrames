@@ -4,8 +4,8 @@
 
 
 
-LEDStep::LEDStep(uint8_t a_Flags, uint8_t a_Reps, uint8_t a_Magnitude, uint16_t a_FadeTime, uint16_t a_Duration)
-	: m_Flags(a_Flags), m_Repetitions(a_Reps), m_LEDMagnitude(a_Magnitude), m_FadeTime(a_FadeTime), m_Duration(a_Duration)
+LEDStep::LEDStep(uint8_t a_Flags, uint8_t a_Reps, uint8_t a_Magnitude, uint16_t a_Easing, uint16_t a_Duration)
+	: m_Flags(a_Flags), m_Repetitions(a_Reps), m_LEDMagnitude(a_Magnitude), m_Easing(a_Easing), m_Duration(a_Duration)
 {
 }
 
@@ -61,7 +61,10 @@ LEDStep* LEDQueue::get(bool a_Start)
 	LEDStep* l_RetVal;
 
 	if (a_Start)
+	{
 		m_GroupStartIndex = m_CurIndex;
+		m_GroupCurIndex = m_CurIndex;
+	}
 
 	l_RetVal = &m_Head[m_CurIndex];
 
@@ -103,9 +106,10 @@ LEDStep* LEDQueue::retrieveNextMessage(void)
 * @param [in] a_SpiLeds - a TLC59711 shared between this object and others
 * @param [in] a_LEDQueue - a LEDQueue shared between this object and others
 */
-LedStateMachine::LedStateMachine(LED& a_LED, LEDQueue& a_Steps) : m_LED(a_LED), m_LEDQueue(a_Steps) 
+LedStateMachine::LedStateMachine(LED& a_LED, LEDQueue& a_Steps) : m_LED(a_LED), m_LEDQueue(a_Steps)
 {
 	// Note - RgbLeds are clear by their constructor
+	m_Easing.setLED(&m_LED);
 	reset();
 }
 
@@ -126,7 +130,6 @@ void LedStateMachine::reset(void)
 void LedStateMachine::turnOffLed(void)
 {
 	m_LED.clear();
-	m_LED.write();
 }
 
 /**
@@ -203,24 +206,18 @@ bool LedStateMachine::updateState(void)
 
 				m_State = eStateEasing;
 				m_CountDown = m_EasingTime;
-				memcpy(m_EndLeds, m_CurrentMsg->getLeds(), sizeof(m_CurrentLeds));
-				for (int i=0; i<RgbLed::m_NumberOfLeds; i++)
-				{
-					m_Easing[i].init(m_CurrentLeds[i], m_EndLeds[i], m_EasingTime);
-				}
-				for (int i=0; i<RgbLed::m_NumberOfLeds; i++)
-				{
-					m_Easing[i].calc(m_CurrentLeds[i]);
-				}
+				m_EndLed = m_CurrentMsg->getLEDMagnitude();
+
+				m_Easing.init(m_CurrentLed, m_EndLed, m_EasingTime);
+				m_Easing.calc();
 			}
 			else
 			{
 				m_State = eStateSteady;
 				m_CountDown = m_Duration;
-				memcpy(m_CurrentLeds, m_CurrentMsg->getLeds(), sizeof(m_CurrentLeds));
+				m_CurrentLed = m_CurrentMsg->getLEDMagnitude();
 			}
-			m_LED.setLeds(&m_CurrentLeds);
-			m_LED.write();
+			m_LED.setMagnitude(m_CurrentLed);
 
 			break;
 		case eStateEasing:
@@ -229,7 +226,7 @@ bool LedStateMachine::updateState(void)
 			{
 				// reconcile that easing may have not ended precicely on the correct value
 				// so just copy in the correct values 
-				memcpy(m_CurrentLeds, m_CurrentMsg->getLeds(), sizeof(m_CurrentLeds));
+				m_CurrentLed = m_CurrentMsg->getLEDMagnitude();
 				m_CountDown = m_Duration;
 				if (m_CountDown)
 				{
@@ -251,13 +248,9 @@ bool LedStateMachine::updateState(void)
 			else
 			{
 				// Ease on down the road
-				for (int i=0; i < RgbLed::m_NumberOfLeds; i++)
-				{
-					m_Easing[i].calc(m_CurrentLeds[i]);
-				}
+				m_Easing.calc();
 			}
 			// write the new values
-			m_LED.setLeds(&m_CurrentLeds);
 			m_LED.write();
 			break;
 		case eStateSteady:
